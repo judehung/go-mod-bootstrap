@@ -19,7 +19,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -38,12 +37,8 @@ import (
 	"github.com/edgexfoundry/go-mod-bootstrap/v4/bootstrap/startup"
 	"github.com/edgexfoundry/go-mod-bootstrap/v4/di"
 
-	"github.com/edgexfoundry/go-mod-bootstrap/v4/bootstrap/zerotrust"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	edge_apis "github.com/openziti/sdk-golang/edge-apis"
-	"github.com/openziti/sdk-golang/ziti"
-	"github.com/openziti/sdk-golang/ziti/edge"
 )
 
 // HttpServer contains references to dependencies required by the http server implementation.
@@ -53,11 +48,6 @@ type HttpServer struct {
 	doListenAndServe bool
 	serverKey        string
 }
-
-type ZitiContext struct {
-	c *ziti.Context
-}
-type OpenZitiIdentityKey struct{}
 
 // NewHttpServer is a factory method that returns an initialized HttpServer receiver struct.
 func NewHttpServer(router *echo.Echo, doListenAndServe bool, serviceKey string) *HttpServer {
@@ -139,8 +129,6 @@ func (b *HttpServer) BootstrapHandler(
 		Timeout: timeout,
 	}))
 
-	zc := &ZitiContext{}
-
 	b.router.Use(RequestLimitMiddleware(bootstrapConfig.Service.MaxRequestSize, lc))
 
 	b.router.Use(ProcessCORS(bootstrapConfig.Service.CORSConfiguration))
@@ -176,63 +164,6 @@ func (b *HttpServer) BootstrapHandler(
 		b.isRunning = true
 		listenMode := strings.ToLower(bootstrapConfig.Service.SecurityOptions[config.SecurityModeKey])
 		switch listenMode {
-		case zerotrust.ZeroTrustMode:
-			secretProvider := container.SecretProviderExtFrom(dic.Get)
-			if secretProvider == nil {
-				err = errors.New("secret provider is nil. cannot proceed with zero trust configuration")
-				break
-			}
-			secretProvider.EnableZeroTrust() //mark the secret provider as zero trust enabled
-			var zitiCtx ziti.Context
-			var ctxErr error
-			jwt, jwtErr := secretProvider.GetSelfJWT()
-			if jwtErr != nil {
-				lc.Errorf("could not load jwt: %v", jwtErr)
-				err = jwtErr
-				break
-			}
-			ozUrl := bootstrapConfig.Service.SecurityOptions["OpenZitiController"]
-			if !strings.Contains(ozUrl, "://") {
-				ozUrl = "https://" + ozUrl
-			}
-			caPool, caErr := ziti.GetControllerWellKnownCaPool(ozUrl)
-			if caErr != nil {
-				err = caErr
-				break
-			}
-
-			credentials := edge_apis.NewJwtCredentials(jwt)
-			credentials.CaPool = caPool
-
-			cfg := &ziti.Config{
-				ZtAPI:       ozUrl + "/edge/client/v1",
-				Credentials: credentials,
-			}
-			cfg.ConfigTypes = append(cfg.ConfigTypes, "all")
-
-			zitiCtx, ctxErr = ziti.NewContext(cfg)
-			if ctxErr != nil {
-				err = ctxErr
-				break
-			}
-
-			ozServiceName := zerotrust.OpenZitiServicePrefix + b.serverKey
-			lc.Infof("Using OpenZiti service name: %s", ozServiceName)
-			for t.HasNotElapsed() {
-				ln, listenErr := zitiCtx.Listen(ozServiceName)
-				if listenErr != nil {
-					err = fmt.Errorf("could not bind service %s: %s", ozServiceName, listenErr.Error())
-					t.SleepForInterval()
-				} else {
-					zc.c = &zitiCtx
-					lc.Infof("listening on overlay network. ListenMode '%s' at %s", listenMode, addr)
-					err = server.Serve(ln)
-					break
-				}
-			}
-			if !t.HasNotElapsed() {
-				lc.Error("could not listen on the OpenZiti overlay network. timeout reached")
-			}
 		case "http":
 			fallthrough
 		default:
@@ -294,9 +225,5 @@ func RequestLimitMiddleware(sizeLimit int64, lc logger.LoggingClient) echo.Middl
 }
 
 func mutator(srcCtx context.Context, c net.Conn) context.Context {
-	if zitiConn, ok := c.(edge.Conn); ok {
-		return context.WithValue(srcCtx, OpenZitiIdentityKey{}, zitiConn)
-	}
-
 	return srcCtx
 }

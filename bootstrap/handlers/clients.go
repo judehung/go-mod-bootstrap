@@ -19,7 +19,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 	"time"
 
@@ -31,11 +30,9 @@ import (
 	"github.com/edgexfoundry/go-mod-registry/v4/pkg/types"
 	"github.com/edgexfoundry/go-mod-registry/v4/registry"
 
-	"github.com/edgexfoundry/go-mod-bootstrap/v4/bootstrap/config"
 	"github.com/edgexfoundry/go-mod-bootstrap/v4/bootstrap/container"
 	"github.com/edgexfoundry/go-mod-bootstrap/v4/bootstrap/secret"
 	"github.com/edgexfoundry/go-mod-bootstrap/v4/bootstrap/startup"
-	"github.com/edgexfoundry/go-mod-bootstrap/v4/bootstrap/zerotrust"
 	"github.com/edgexfoundry/go-mod-bootstrap/v4/di"
 )
 
@@ -62,24 +59,12 @@ func (cb *ClientsBootstrap) BootstrapHandler(
 	lc := container.LoggingClientFrom(dic.Get)
 	cfg := container.ConfigurationFrom(dic.Get)
 	cb.registry = container.RegistryFrom(dic.Get)
+	jwtSecretProvider := secret.NewJWTSecretProvider(container.SecretProviderExtFrom(dic.Get))
 
 	if cfg.GetBootstrap().Clients != nil {
 		for serviceKey, serviceInfo := range *cfg.GetBootstrap().Clients {
 			var url string
 			var err error
-
-			sp := container.SecretProviderExtFrom(dic.Get)
-			jwtSecretProvider := secret.NewJWTSecretProvider(sp)
-			if serviceInfo.SecurityOptions[config.SecurityModeKey] == zerotrust.ZeroTrustMode {
-				sp.EnableZeroTrust()
-			}
-			if rt, transpErr := zerotrust.HttpTransportFromClient(sp, serviceInfo, lc); transpErr != nil {
-				lc.Errorf("could not obtain an http client for use with zero trust provider: %v", transpErr)
-				return false
-			} else {
-				sp.SetHttpTransport(rt) //only need to set the transport when using SecretProviderExt
-				sp.SetFallbackDialer(&net.Dialer{})
-			}
 
 			if !serviceInfo.UseMessageBus {
 				url, err = cb.getClientUrl(serviceKey, serviceInfo.Url(), startupTimer, dic, lc)

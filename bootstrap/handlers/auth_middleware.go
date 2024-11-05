@@ -28,7 +28,6 @@ import (
 	"github.com/edgexfoundry/go-mod-bootstrap/v4/bootstrap/secret"
 
 	"github.com/labstack/echo/v4"
-	"github.com/openziti/sdk-golang/ziti/edge"
 )
 
 // SecretStoreAuthenticationHandlerFunc prefixes an existing HandlerFunc
@@ -55,16 +54,6 @@ func SecretStoreAuthenticationHandlerFunc(secretProvider interfaces.SecretProvid
 			w := c.Response()
 			authHeader := r.Header.Get("Authorization")
 			lc.Debugf("Authorizing incoming call to '%s' via JWT (Authorization len=%d), %v", r.URL.Path, len(authHeader), secretProvider.IsZeroTrustEnabled())
-
-			if secretProvider.IsZeroTrustEnabled() {
-				zitiCtx := r.Context().Value(OpenZitiIdentityKey{})
-				if zitiCtx != nil {
-					zitiEdgeConn := zitiCtx.(edge.Conn)
-					lc.Debugf("Authorizing incoming connection via OpenZiti for %s", zitiEdgeConn.SourceIdentifier())
-					return inner(c)
-				}
-				lc.Debug("zero trust was enabled, but no marker was found. this is unexpected. falling back to token-based auth")
-			}
 
 			authParts := strings.Split(authHeader, " ")
 			if len(authParts) >= 2 && strings.EqualFold(authParts[0], "Bearer") {
