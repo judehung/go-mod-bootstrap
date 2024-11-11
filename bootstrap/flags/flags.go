@@ -52,7 +52,7 @@ type Default struct {
 	configProviderUrl  string
 	commonConfig       string
 	profile            string
-	configDir          string
+	ConfigDir          string
 	configFileName     string
 	remoteServiceHosts string
 }
@@ -98,8 +98,8 @@ func (d *Default) Parse(arguments []string) {
 	d.FlagSet.StringVar(&d.configFileName, "configFile", DefaultConfigFile, "")
 	d.FlagSet.StringVar(&d.profile, "profile", "", "")
 	d.FlagSet.StringVar(&d.profile, "p", "", ".")
-	d.FlagSet.StringVar(&d.configDir, "configDir", "", "")
-	d.FlagSet.StringVar(&d.configDir, "cd", "", "")
+	d.FlagSet.StringVar(&d.ConfigDir, "configDir", "", "")
+	d.FlagSet.StringVar(&d.ConfigDir, "cd", "", "")
 	d.FlagSet.StringVar(&d.remoteServiceHosts, "remoteServiceHosts", "", "")
 	d.FlagSet.StringVar(&d.remoteServiceHosts, "rsh", "", "")
 	d.FlagSet.BoolVar(&d.useRegistry, "registry", false, "")
@@ -143,7 +143,7 @@ func (d *Default) Profile() string {
 
 // ConfigDirectory returns the directory where the config file(s) are located, if it was specified.
 func (d *Default) ConfigDirectory() string {
-	return d.configDir
+	return d.ConfigDir
 }
 
 // ConfigFileName returns the name of the local configuration file
