@@ -684,10 +684,8 @@ func (cp *Processor) ListenForCustomConfigChanges(
 		defer cp.wg.Done()
 
 		errorStream := make(chan error)
-		defer close(errorStream)
 
 		updateStream := make(chan any)
-		defer close(updateStream)
 
 		go cp.privateConfigClient.WatchForChanges(updateStream, errorStream, configToWatch, sectionName, cp.getMessageClient)
 
@@ -797,10 +795,8 @@ func (cp *Processor) listenForPrivateChanges(serviceConfig interfaces.Configurat
 		defer cp.wg.Done()
 
 		errorStream := make(chan error)
-		defer close(errorStream)
 
 		updateStream := make(chan any)
-		defer close(updateStream)
 
 		go privateConfigClient.WatchForChanges(updateStream, errorStream, serviceConfig.EmptyWritablePtr(), writableKey, cp.getMessageClient)
 
@@ -859,10 +855,8 @@ func (cp *Processor) listenForCommonChanges(fullServiceConfig interfaces.Configu
 		var previousCommonWritable any
 
 		errorStream := make(chan error)
-		defer close(errorStream)
 
 		updateStream := make(chan any)
-		defer close(updateStream)
 
 		go commonConfigClient.WatchForChanges(updateStream, errorStream, fullServiceConfig.EmptyWritablePtr(), writableKey, cp.getMessageClient)
 
